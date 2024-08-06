@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use reqwest::Client;
 use serde_json::Value;
-use reqwest::Error;
 
 pub enum MsgType {
     GetMe,
@@ -9,7 +8,7 @@ pub enum MsgType {
     SendMessage,
 }
 
-pub fn type_to_str(t: MsgType) -> &'static str {
+pub fn type_to_str(t: &MsgType) -> &'static str {
     match t {
         MsgType::GetMe => "getMe",
         MsgType::GetUpdates => "getUpdates",
@@ -22,7 +21,7 @@ pub async fn send_request(
     api_token: &str,
     method: &str,
     params: &HashMap<&str, &str>,
-) -> Result<Value, Error> {
+) -> Result<serde_json::Value, reqwest::Error> {
     let mut url = String::new();
     url.push_str("https://api.telegram.org/bot");
     url.push_str(api_token);
