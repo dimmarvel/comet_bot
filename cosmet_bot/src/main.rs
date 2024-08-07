@@ -1,53 +1,51 @@
 use reqwest::Client;
 mod config;
 mod tg_bot;
-mod tg_objects;
+mod args;
 
 pub use config::Config;
-pub use serde_json::Value;
 pub use std::error::Error;
-pub use tg_bot::send_request;
-pub use tg_bot::type_to_str;
 pub use tg_bot::MsgType;
+pub use tg_bot::run;
 
-use std::collections::HashMap;
+use clap::Parser;
+use env_logger;
+use args::Verbose;
+use args::Arguments;
+use std::str::FromStr;
 
-async fn run(cli: &Client, conf: &Config, t: &MsgType) {
-    // Set the initial offset to 0
-    let mut offset: i64 = 0;
-    loop {
-        // Set up the parameters for the getUpdates method
-        let mut params = HashMap::new();
-        params.insert("offset", offset.to_string());
-        params.insert("timeout", "2".to_string());
-    
-        // Send the request and get the response
-        let response = send_request(
-            &cli, &conf.tg_token, 
-            type_to_str(t), 
-            &Default::default()).await;
-    
-        // Check if there are any updates
-        if let Ok(response) = response {
-            if let Some(updates) = response["result"].as_array() {
-                // Process each update
-                for update in updates {
-                    offset = update["update_id"].as_i64().unwrap() + 1;
+pub struct Application {
+    pub cli: Client,
+    pub conf: Config,
+    pub args: Arguments,
+    pub log_level: &'static str,
+}
 
-                    println!("{}", offset);
-                }
-            }
-        }
+impl Application {
+    pub fn init() -> Result<Self, Box<dyn Error>> {
+        let cli = Client::new();
+        let conf = config::load_config("../config.json")?;
+        let args = args::Arguments::parse();
+
+        let log_level = match args.verbose {
+            Verbose::Debug => "debug",
+            Verbose::Info => "info",
+            Verbose::Warn => "warn",
+            Verbose::Error => "error",
+        };
+
+        env_logger::Builder::new()
+        .filter_level(log::LevelFilter::from_str(log_level).unwrap())
+        .init();
+
+        Ok(Application { cli, conf, args, log_level })
     }
-
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    let cli = Client::new();
-    let conf = config::load_config("config.json")?;
-    println!("{:#?}", conf);
-    run(&cli, &conf, &MsgType::GetMe).await;
+    let app = Application::init()?;
+    run(&app.cli, &app.conf, &MsgType::GetUpdates).await;
     Ok(())
 }
 
