@@ -1,10 +1,11 @@
 
-
+pub use crate::tg_objects::Message;
 pub use crate::config::Config;
 use std::collections::HashMap;
 use reqwest::Client;
 use serde_json::Value;
 use log;
+use std::io::Cursor;
 
 pub enum MsgType {
     GetMe,
@@ -44,16 +45,15 @@ async fn handle_message(updates: &Vec<Value>, offset: &mut i64, cli: &Client, co
     // Process each update
     for update in updates {
         println!("{:#?}", update);
-        if let Some(message) = update["message"].as_object() {
-            log::debug!("{:#?}", message);
-            let from = message["from"].as_object().unwrap();
-            let chat = message["chat"].as_object().unwrap();
-            let chat_id = chat["id"].as_i64().unwrap();
-            let text = message["text"].as_str().unwrap();
 
+        if let Some(message) = update["message"].as_object().and_then(|o| o.get("text")) {
+            let mut cursor = Cursor::new(message.to_string().into_bytes());
+            let msg: Message = serde_json::from_reader(&mut cursor).unwrap();
+            log::debug!(" -- --- -- \n{:#?}", msg);
+            
             let mut params: HashMap<&str, String> = HashMap::new();
-            params.insert("chat_id", chat_id.to_string());
-            params.insert("text", text.to_string());
+            params.insert("chat_id", msg.chat.id.to_string());
+            params.insert("text", msg.from.first_name + ": " + &msg.text.to_string());
 
             let _response = send_request(cli, &conf.tg_token, "sendMessage", &params).await?;
 

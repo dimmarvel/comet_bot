@@ -1,7 +1,9 @@
+use log::debug;
 use reqwest::Client;
 mod config;
 mod tg_bot;
 mod args;
+mod tg_objects;
 
 pub use config::Config;
 pub use std::error::Error;
@@ -24,8 +26,12 @@ pub struct Application {
 impl Application {
     pub fn init() -> Result<Self, Box<dyn Error>> {
         let cli = Client::new();
-        let conf = config::load_config("../config.json")?;
+        let conf = config::load_config("config.json")?;
         let args = args::Arguments::parse();
+
+        let arg_line = std::env::args().skip(1).map(|arg| arg.to_string()).collect::<Vec<String>>().join(" ");
+
+        debug!("Args: {}", arg_line);
 
         let log_level = match args.verbose {
             Verbose::Debug => "debug",
@@ -45,6 +51,7 @@ impl Application {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     let app = Application::init()?;
+    
     run(&app.cli, &app.conf, &MsgType::GetUpdates).await;
     Ok(())
 }
