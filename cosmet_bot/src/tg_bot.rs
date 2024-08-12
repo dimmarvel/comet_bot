@@ -1,26 +1,11 @@
 
-pub use crate::tg_objects::Message;
-pub use crate::config::Config;
+use crate::config::Config;
+use crate::tg_utils::{MsgType, type_to_str};
+use crate::tg_handlers::handle_message;
 use std::collections::HashMap;
 use reqwest::Client;
 use serde_json::Value;
-use log;
-use std::io::Cursor;
-
-pub enum MsgType {
-    GetMe,
-    GetUpdates,
-    SendMessage,
-}
-
-pub fn type_to_str(t: &MsgType) -> &'static str 
-{
-    match t {
-        MsgType::GetMe => "getMe",
-        MsgType::GetUpdates => "getUpdates",
-        MsgType::SendMessage => "sendMessage",
-    }
-}
+use log::{debug, error};
 
 pub async fn send_request(
     client: &Client,
@@ -29,6 +14,7 @@ pub async fn send_request(
     params: &HashMap<&str, String>,
 ) -> Result<serde_json::Value, reqwest::Error> 
 {
+    debug!("{:?}", params);
     let mut url = String::new();
     url.push_str("https://api.telegram.org/bot");
     url.push_str(api_token);
@@ -40,31 +26,6 @@ pub async fn send_request(
     Ok(json)
 }
 
-async fn handle_message(updates: &Vec<Value>, offset: &mut i64, cli: &Client, conf: &Config) -> Result<(), Box<dyn std::error::Error>>
-{
-    // Process each update
-    for update in updates {
-        println!("{:#?}", update);
-
-        if let Some(message) = update["message"].as_object().and_then(|o| o.get("text")) {
-            let mut cursor = Cursor::new(message.to_string().into_bytes());
-            let msg: Message = serde_json::from_reader(&mut cursor).unwrap();
-            log::debug!(" -- --- -- \n{:#?}", msg);
-            
-            let mut params: HashMap<&str, String> = HashMap::new();
-            params.insert("chat_id", msg.chat.id.to_string());
-            params.insert("text", msg.from.first_name + ": " + &msg.text.to_string());
-
-            let _response = send_request(cli, &conf.tg_token, "sendMessage", &params).await?;
-
-            *offset = update["update_id"].as_i64().unwrap() + 1;
-        }
-    }
-    Ok(())
-}
-
-
-
 pub async fn run(cli: &Client, conf: &Config, t: &MsgType)
 {
     // Set the initial offset to 0
@@ -73,7 +34,7 @@ pub async fn run(cli: &Client, conf: &Config, t: &MsgType)
         // Set up the parameters for the getUpdates method
         let mut params = HashMap::new();
         params.insert("offset", offset.to_string());
-        params.insert("timeout", "2".to_string());
+        params.insert("timeout", "30".to_string());
     
         // Send the request and get the response
         let response = send_request(
@@ -83,18 +44,18 @@ pub async fn run(cli: &Client, conf: &Config, t: &MsgType)
     
         // Check if there are any updates
         if let Ok(response) = response {
-            if let Some(updates) = response["result"].as_array() {
-                match handle_message(updates, &mut offset, cli, conf).await {
-                    Ok(_) => println!("Message handled successfully"),
-                    Err(e) => eprintln!("Error handling message: {}", e),
+            if let Some(response_res) = response["result"].as_array() {
+                let _ = match handle_message(response_res, &mut offset, cli, conf).await {
+                    Ok(_) => Ok(()),
+                    Err(e) => Err(e),
                 };
             }
             else {
-                println!("Something wrong {:#?} ", response);
+                error!("Message have no result {:#?} ", response);
             }
         }
         else {
-            println!("Error response {}", offset);
+            error!("Response {}", offset);
         }
     }
 

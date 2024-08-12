@@ -4,10 +4,12 @@ mod config;
 mod tg_bot;
 mod args;
 mod tg_objects;
+mod tg_handlers;
+mod tg_utils;
 
 pub use config::Config;
 pub use std::error::Error;
-pub use tg_bot::MsgType;
+pub use tg_utils::MsgType;
 pub use tg_bot::run;
 
 use clap::Parser;
