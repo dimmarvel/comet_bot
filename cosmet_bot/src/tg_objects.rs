@@ -1,5 +1,10 @@
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Serialize, Deserialize)]
+struct EditedMessage {
+    edited_message: Message,
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Message {
     pub chat: Chat,

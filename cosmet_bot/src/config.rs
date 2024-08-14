@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::io::{self, Read, ErrorKind};
 use serde_json;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone,Serialize, Deserialize)]
 pub struct Config {
     pub tg_token: String,
     pub ip_address: String,

@@ -1,30 +1,69 @@
 use crate::tg_objects::Message;
-use crate::config::Config;
-use crate::tg_bot::send_request;
+use crate::application::Application;
+use crate::tg_bot::{send_msg, MsgRequest};
+use crate::tg_utils::{CommandType, command_str_to_type, MsgType};
 use serde_json::Value;
-use reqwest::Client;
-use std::collections::HashMap;
-use log::error;
+use log::{debug, warn, error};
 
-pub async fn handle_message(response_results: &Vec<Value>, offset: &mut i64, cli: &Client, conf: &Config) -> Result<(), Box<dyn std::error::Error>>
+pub async fn handle_message(app : Application, response_results: &Vec<Value>, offset: &mut i64) -> Result<(), Box<dyn std::error::Error>>
 {
-    // Process each update
     for res in response_results {
         if res.get("message").is_some() && res["message"].is_object() {
             let msg_obj: Value = serde_json::from_str(res["message"].to_string().as_str()).unwrap();
             let msg: Message = serde_json::from_value(msg_obj).unwrap();
-    
-            let mut params: HashMap<&str, String> = HashMap::new();
-            params.insert("chat_id", msg.chat.id.to_string());
-            params.insert("text", msg.from.first_name + ": " + &msg.text.to_string());
-    
-            let _response = send_request(cli, &conf.tg_token, "sendMessage", &params).await?;
-    
-            *offset = res["update_id"].as_i64().unwrap() + 1;
+            let mut req :  MsgRequest = 
+                MsgRequest::new(app.clone(), res["update_id"].as_i64().unwrap(), MsgType::SendMessage, msg);
+
+            // Check if the message is a command
+            if req.msg.text.starts_with("/") 
+            {
+                if req.msg.text.len() == 1 {
+                    handle_command(offset, None, &mut req).await?;
+                    continue;
+                }
+                let command = req.msg.text[1..].split_whitespace().next().unwrap();
+                debug!("Get {} command", command);
+                handle_command(offset, command_str_to_type(command), &mut req).await?;
+                continue;
+            }
+            req.msg.text = "Is not a command".to_string();
+            send_msg(offset, &mut req).await?;
+            continue;
         }
         else {
-            error!("Message have no message json object{:?}", res);
+
+            error!("Edited message {:#?}", res);
+            let msg_obj: Value = serde_json::from_str(res["edited_message"].to_string().as_str()).unwrap();
+            let msg: Message = serde_json::from_value(msg_obj).unwrap();
+            let mut req :  MsgRequest = 
+                MsgRequest::new(app.clone(), res["update_id"].as_i64().unwrap(), MsgType::SendMessage, msg);
+            req.msg.text = "You edit the message my baby".to_string();
+            send_msg(offset, &mut req).await?;
+            continue;
         }
     }
     Ok(())
+}
+
+
+async fn handle_command(offset: &mut i64, command_t : Option<CommandType>, req: &mut MsgRequest) -> Result<serde_json::Value, reqwest::Error> 
+{
+    match command_t {
+        Some(CommandType::Hello) => handle_hello_command(offset, req).await,
+        None => handle_unknown_command(offset, req).await,
+    }
+}
+
+async fn handle_hello_command(offset: &mut i64, req: &mut MsgRequest) -> Result<serde_json::Value, reqwest::Error> 
+{
+    debug!("Hello command was called");
+    req.msg.text = "Hello command was called".to_string();
+    send_msg(offset, req).await
+}
+
+async fn handle_unknown_command(offset: &mut i64, req: &mut MsgRequest) -> Result<serde_json::Value, reqwest::Error> 
+{
+    warn!("Unknown command was called");
+    req.msg.text = "Unknown command was called".to_string();
+    send_msg(offset, req).await
 }
