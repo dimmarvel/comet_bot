@@ -27,7 +27,6 @@ pub async fn send_request(
     params: &HashMap<&str, String>,
 ) -> Result<serde_json::Value, reqwest::Error> 
 {
-    debug!("{:?}", params);
     let mut url = String::new();
     url.push_str("https://api.telegram.org/bot");
     url.push_str(api_token);
@@ -48,7 +47,7 @@ pub async fn send_msg(
     let mut params: HashMap<&str, String> = HashMap::new();
     params.insert("chat_id", msg.msg.chat.id.to_string());
     params.insert("text", format!("{}: {}", msg.msg.from.first_name, msg.msg.text));
-    debug!("{:?}", params);
+    debug!("Send message: {:?}", params);
     let _response = send_request(&msg.app.cli, &msg.app.conf.tg_token, msg_type_to_str(&msg.method), &params).await?;
     
     *offset = msg.update_id + 1;

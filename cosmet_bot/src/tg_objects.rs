@@ -14,6 +14,29 @@ pub struct Message {
     pub text: String,
 }
 
+impl Message {
+    pub fn new(chat_id: i64, from_first_name: &str) -> Self {
+        Message {
+            chat: Chat {
+                first_name: from_first_name.to_string(),
+                id: chat_id,
+                chat_type: "".to_string(),
+                username: None,
+            },
+            date: 0,
+            from: User {
+                first_name: from_first_name.to_string(),
+                id: chat_id,
+                is_bot: false,
+                language_code: "".to_string(),
+                username: "".to_string(),
+            },
+            message_id: 0,
+            text: "".to_string(),
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Chat {
     pub first_name: String,
