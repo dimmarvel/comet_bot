@@ -5,6 +5,7 @@ mod tg_objects;
 mod tg_handlers;
 mod tg_utils;
 mod application;
+mod errors;
 
 pub use config::Config;
 pub use std::error::Error;

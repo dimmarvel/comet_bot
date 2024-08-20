@@ -5,7 +5,7 @@ struct EditedMessage {
     edited_message: Message,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Default, Serialize, Deserialize, Debug, Clone)]
 pub struct Message {
     pub chat: Chat,
     pub date: i64,
@@ -37,7 +37,7 @@ impl Message {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Default, Serialize, Deserialize, Debug, Clone)]
 pub struct Chat {
     pub first_name: String,
     pub id: i64,
@@ -46,7 +46,7 @@ pub struct Chat {
     pub username: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Default, Serialize, Deserialize, Debug, Clone)]
 pub struct User {
     pub first_name: String,
     pub id: i64,
